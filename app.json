@@ -1,25 +1,28 @@
 {
   "expo": {
-    "name": "GardenAppExpo",
-    "slug": "GardenAppExpo",
-    "version": "1.0.0",
+    "name": "Sapling - Productivity",
+    "slug": "sapling",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "sapling",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "package": "com.sapling.sapling",
+      "bundleIdentifier": "com.sapling.sapling"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#C8F3CD"
+      },
+      "package": "com.sapling.sapling"
     },
     "web": {
       "bundler": "metro",
@@ -31,6 +34,20 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "f26c33ca-0677-4d29-9cfe-ddcb7715dc96"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f26c33ca-0677-4d29-9cfe-ddcb7715dc96"
     }
   }
 }
