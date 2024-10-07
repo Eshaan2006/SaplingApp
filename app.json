@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sapling - Productivity",
     "slug": "sapling",
-    "version": "1.0.5",
+    "version": "1.0.9 ",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sapling",
@@ -14,8 +14,16 @@
     },
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "package": "com.sapling.sapling",
-      "bundleIdentifier": "com.sapling.sapling"
+      "bundleIdentifier": "com.sapling.sapling",
+      "buildNumber": "12",
+      "googleServicesFile": "./ios/GoogleService-Info.plist",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.sapling"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -40,12 +48,27 @@
         "origin": false
       },
       "eas": {
-        "projectId": "f26c33ca-0677-4d29-9cfe-ddcb7715dc96"
+        "projectId": "f26c33ca-0677-4d29-9cfe-ddcb7715dc96",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.evanbacon.pillarvalley.widgets",
+                  "targetName": "widgets",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.bacon.data"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.7",
     "updates": {
       "url": "https://u.expo.dev/f26c33ca-0677-4d29-9cfe-ddcb7715dc96"
     }

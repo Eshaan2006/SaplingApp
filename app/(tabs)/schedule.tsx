@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, KeyboardAvoidingView, Modal, Dimensions } from 'react-native';
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, KeyboardAvoidingView, Modal, Dimensions, RefreshControl } from 'react-native';
 import { Agenda, Calendar } from 'react-native-calendars';
 import { FAB } from 'react-native-paper';
 import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
@@ -45,7 +45,7 @@ const schedule = () => {
   const [modalVisible, setModalVisible] = useState(false); 
   const [taskNameInput, setTaskNameInput] = useState('');
   const [loading, setLoading] = useState(true); // To track loading state
- 
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -91,7 +91,15 @@ const schedule = () => {
     checkAndAddEmail();
   }, [user]);
 
-  
+  const getDayOfWeek = (dateString) => {
+    // Split the dateString (YYYY-MM-DD) into year, month, and day
+    const [year, month, day] = dateString.split('-').map(Number); // Ensure numbers are parsed correctly
+    // Create a new Date object in local time
+    const date = new Date(year, month - 1, day); // JavaScript months are 0-indexed
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return daysOfWeek[date.getDay()]; // Return the correct day of the week
+  };
+
 
   const loadItems = async (date) => {
     try {
@@ -133,7 +141,7 @@ const schedule = () => {
         dates: arrayRemove(date),
       });
       const updatedTaskDoc = await getDoc(taskRef);
-
+  
       if (updatedTaskDoc.exists()) {
         const updatedTaskData = updatedTaskDoc.data();
         
@@ -147,12 +155,16 @@ const schedule = () => {
         const statsRef = doc(FIRESTORE_DB, 'users', uid, 'stats', 'userStats');
         const statsDoc = await getDoc(statsRef);
         if (statsDoc.exists()) {
+          // Increment both credits and tasksCompleted if statsDoc exists
           await updateDoc(statsRef, {
             credits: increment(1),
+            tasksCompleted: increment(1), // Increment tasksCompleted
           });
         } else {
+          // Create stats doc and initialize credits and tasksCompleted
           await setDoc(statsRef, {
             credits: 1,
+            tasksCompleted: 1, // Initialize tasksCompleted
           });
         }
       }
@@ -162,6 +174,7 @@ const schedule = () => {
       console.error('Error removing date from task:', error);
     }
   }, [selectedDate, user]);
+  
 
   const renderItem = (item) => {
     const formatDuration = ({ hours, minutes }) => {
@@ -245,6 +258,11 @@ const schedule = () => {
   });
 
   const handleOpenPress = () => bottomSheetRef.current?.expand()
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadItems(selectedDate); // Reload tasks for the selected date
+    setRefreshing(false);
+  };
 
   const formatTime = ({
     hours,
@@ -264,8 +282,11 @@ const schedule = () => {
     return timeParts.length > 0 ? timeParts.join(" ") : null;
   };
 
-  return (
+  return (  
     <SafeAreaView style={styles.container}>
+       <View style={styles.header}>
+        <Text style={styles.headerText}>{getDayOfWeek(selectedDate)}'s Tasks:</Text>
+      </View>
          <Agenda
           items={items}
           selected={selectedDate}
@@ -275,6 +296,9 @@ const schedule = () => {
           renderEmptyDate={renderEmptyDate}
           renderDay={renderDay}
           showClosingKnob={true}
+          refreshControl={ // Use the refreshControl prop directly
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           theme={{
             selectedDayBackgroundColor: '#66BB6A',
             reservationsBackgroundColor: '#C8F3CD',
@@ -515,6 +539,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  header: {
+    padding: 5,
+    marginLeft: 10,
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#388E3C',
   },
 });
 

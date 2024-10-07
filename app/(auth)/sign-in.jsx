@@ -7,6 +7,7 @@ import { images } from "../../constants";
 import CustomButton from '../../components/CustomButton'
 import FormField from "../../components/FormField";
 import { signInWithEmailAndPassword } from 'firebase/auth'
+import SmartSettings from 'local:smart-settings';
 
 
 const SignIn = () => {
@@ -19,7 +20,8 @@ const SignIn = () => {
       setLoading(true);
       try {
           const response = await signInWithEmailAndPassword(auth, email, password);
-
+          console.log(response.user.uid);
+          SmartSettings.set('userId', response.user.uid, 'group.sapling');
           router.replace('/schedule');
       } catch (error) {
 

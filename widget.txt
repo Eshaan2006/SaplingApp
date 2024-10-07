@@ -1,0 +1,210 @@
+import WidgetKit
+import SwiftUI
+import FirebaseCore
+import FirebaseFirestore
+import FirebaseAuth
+import AppIntents
+
+// MARK: - Data Structures
+
+struct Task: Identifiable {
+    let id: String
+    let name: String
+    let duration: String
+    var isCompleted: Bool
+}
+
+struct UserEntry: TimelineEntry {
+    let date: Date
+    let userId: String
+    let tasks: [Task]
+}
+
+// MARK: - Timeline Provider
+
+struct UserProvider: TimelineProvider {
+    init() {
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
+    }
+    
+    func placeholder(in context: Context) -> UserEntry {
+        UserEntry(date: Date(), userId: "Loading...", tasks: [Task(id: "placeholder", name: "Loading tasks...", duration: "Loading...", isCompleted: false)])
+    }
+    
+    func getSnapshot(in context: Context, completion: @escaping (UserEntry) -> Void) {
+        let entry = UserEntry(date: Date(), userId: "Snapshot User", tasks: [Task(id: "sample", name: "Sample Task", duration: "7 hours", isCompleted: false)])
+        completion(entry)
+    }
+    
+    func getTimeline(in context: Context, completion: @escaping (Timeline<UserEntry>) -> Void) {
+        let userDefaults = UserDefaults(suiteName: "group.sapling")
+        let userId = userDefaults?.string(forKey: "userId") ?? ""
+
+        if userId.isEmpty {
+            let entry = UserEntry(date: Date(), userId: "Please log in", tasks: [])
+            let timeline = Timeline(entries: [entry], policy: .atEnd)
+            completion(timeline)
+            return
+        }
+
+        fetchTasksForUser(userId: userId) { tasks in
+            let entry = UserEntry(date: Date(), userId: userId, tasks: tasks)
+            let timeline = Timeline(entries: [entry], policy: .atEnd)
+            completion(timeline)
+        }
+    }
+    
+    func fetchTasksForUser(userId: String, completion: @escaping ([Task]) -> Void) {
+        let db = Firestore.firestore()
+        var taskList: [Task] = []
+
+        let today = DateFormatter()
+        today.dateFormat = "yyyy-MM-dd"
+        let currentDate = today.string(from: Date())
+
+        db.collection("users").document(userId).collection("tasks")
+            .whereField("dates", arrayContains: currentDate)
+            .getDocuments { (querySnapshot, error) in
+                if let error = error {
+                    print("Error fetching tasks: \(error)")
+                    completion([])
+                } else {
+                    for document in querySnapshot!.documents {
+                        let taskName = document.data()["name"] as? String ?? "No Task Name"
+                        let isCompleted = document.data()["isCompleted"] as? Bool ?? false
+                        
+                        var durationString = "Unknown Duration"
+                        if let durationDict = document.data()["duration"] as? [String: Any] {
+                            let hours = durationDict["hours"] as? Int ?? 0
+                            let minutes = durationDict["minutes"] as? Int ?? 0
+                            let seconds = durationDict["seconds"] as? Int ?? 0
+                            
+                            durationString = ""
+                            if hours > 0 { durationString += "\(hours) hour(s) " }
+                            if minutes > 0 { durationString += "\(minutes) minute(s) " }
+                            if seconds > 0 { durationString += "\(seconds) second(s)" }
+                            if durationString.isEmpty { durationString = "No Duration" }
+                        }
+
+                        let task = Task(id: document.documentID, name: taskName, duration: durationString, isCompleted: isCompleted)
+                        taskList.append(task)
+                    }
+                    completion(taskList)
+                }
+            }
+    }
+}
+
+// MARK: - Widget View
+
+struct UserWidgetView: View {
+    var entry: UserProvider.Entry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Today's Tasks:")
+                    .font(.title2.bold())
+                    .foregroundColor(.black)
+                
+                if entry.tasks.count > 5 {
+                    Button(action: {
+                        // Action to open more tasks (e.g., navigate to the app)
+                    }) {
+                        Text("More Tasks")
+                            .font(.caption.bold())
+                            .foregroundColor(Color(hex: "#4D3C36"))
+                    }
+                }
+                
+                Spacer()
+                
+                Button(intent: ReloadTimelineIntent()) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.title2)
+                        .padding(.horizontal, 8)
+                        .foregroundColor(.black)
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 0)
+
+            let maxVisibleTasks = 5
+            let taskCount = entry.tasks.count
+            let containerHeight: CGFloat = taskCount > 0 && taskCount <= 4 ? 65 : 50
+            
+          ForEach(entry.tasks.prefix(maxVisibleTasks)) { task in
+              HStack {
+                  VStack(alignment: .leading) {
+                      Text(task.name)
+                          .font(.headline.bold())
+                          .foregroundColor(.black)
+                      Text(task.duration)
+                          .font(.subheadline)
+                          .foregroundColor(.black)
+                  }
+                  Spacer()
+                  Button(intent: ToggleTaskCompletionIntent(taskId: task.id)) {
+                      Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                          .resizable()
+                          .foregroundColor(Color(hex: "#4D3C36"))
+                          .frame(width: 30, height: 30)
+                  }
+                  .buttonStyle(PlainButtonStyle())
+              }
+              .padding(8)
+              .frame(height: containerHeight)
+              .background(task.isCompleted ? Color(hex: "#A5D6A7") : Color(hex: "#66BB6A"))
+              .cornerRadius(10)
+          }
+            
+            Spacer()
+
+            if entry.tasks.isEmpty {
+                Text("No tasks for today")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 10)
+        .background(Color(hex: "#C8F3CD"))
+        .cornerRadius(15)
+    }
+}
+
+
+// MARK: - Helper Extensions
+
+extension Color {
+    init(hex: String) {
+        let scanner = Scanner(string: hex)
+        scanner.scanLocation = 1 // Skip the "#"
+        var rgb: UInt64 = 0
+        scanner.scanHexInt64(&rgb)
+        let red = Double((rgb >> 16) & 0xFF) / 255.0
+        let green = Double((rgb >> 8) & 0xFF) / 255.0
+        let blue = Double(rgb & 0xFF) / 255.0
+        self.init(red: red, green: green, blue: blue)
+    }
+}
+
+// MARK: - Widget Configuration
+
+struct SaplingWidget: Widget {
+    let kind: String = "SaplingWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: UserProvider()) { entry in
+            UserWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Sapling User Widget")
+        .description("Displays the current user's tasks for today.")
+        .supportedFamilies([.systemLarge])
+        .contentMarginsDisabled()
+    }
+}
+

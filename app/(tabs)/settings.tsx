@@ -1,16 +1,28 @@
 import { View, Text, Modal, StyleSheet, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FIREBASE_AUTH, FIRESTORE_DB } from '@/FirebaseConfig';
 import CustomButton from '@/components/CustomButton';
 import { router } from 'expo-router';
 import { doc, deleteDoc } from 'firebase/firestore';
+import SmartSettings from 'local:smart-settings';
 
 const Setting = () => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState('');
+
+  useEffect(() => {
+    const user = FIREBASE_AUTH.currentUser;
+    if (user) {
+      // Extract the part of the email before the '@' symbol
+      const emailPart = user.email.split('@')[0];
+      setCurrentUserEmail(emailPart);
+    }
+  }, []);
 
   const handleSignOut = async () => {
     try {
       await FIREBASE_AUTH.signOut();
+      SmartSettings.set('userId', '', 'group.sapling');
       router.push('/sign-in');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -64,12 +76,14 @@ const Setting = () => {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.headerText}>Current User:</Text>
+      <Text style={styles.userEmailText}>{currentUserEmail}</Text>
+      <Text style={styles.glazingText}>Thank you for using Sapling!</Text>
       <CustomButton
         title="Sign Out"
         handlePress={handleSignOut}
         containerStyles="mt-20 bg-test-100 border-b-8 border-green-500"
         textStyles={"text-white font-psemibold"}
-        
       />
       <CustomButton
         title="Delete Account"
@@ -77,9 +91,6 @@ const Setting = () => {
         containerStyles="mt-20 bg-red-600 border-b-8 border-red-800"
         textStyles={"text-white font-psemibold"}
       />
-      <Text style={styles.glazingText}>
-        Thank you for using Sapling!
-      </Text>
 
       {/* Modal for confirming account deletion */}
       <Modal
@@ -112,12 +123,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#C8F3CD',
     padding: 20,
   },
+  headerText: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    textAlign: 'left',  // Align text to the left
+    marginTop: 30,
+    color: '#388E3C',
+  },
+  userEmailText: {
+    fontSize: 32,
+    textAlign: 'left',  // Align text to the left
+    color: '#4D4D4D',
+    marginTop: 10,
+    fontWeight: '600',
+  },
   glazingText: {
     marginTop: 30,
     marginBottom: 30,
     fontSize: 50,
     fontWeight: 'bold',
-    alignSelf: 'center',
+    textAlign: 'left',  // Align text to the left
   },
   modalOverlay: {
     flex: 1,
